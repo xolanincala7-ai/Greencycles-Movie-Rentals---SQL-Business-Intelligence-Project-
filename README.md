@@ -45,6 +45,9 @@ Query joins customer, address, city, country, and payment.
 
 Result: India has the largest customer base (1573 customers) with an average spend of $4.21 per rental.
 
+Analyses Snapshot: 
+
+
 # Business Value
 This project demonstrates how SQL can be leveraged to:
 
