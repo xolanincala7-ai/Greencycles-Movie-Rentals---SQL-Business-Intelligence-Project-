@@ -1,0 +1,193 @@
+---
+title: "SQL Business Scenario: Greencycles Movie Rentals by XNcala"
+author: "Xolani Charles Ncala"
+date: "2026-08-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r sql-set}
+
+library(DBI)
+library(RPostgres)
+library(ggplot2)
+
+# Connect to PostgreSQL
+con <- dbConnect(RPostgres::Postgres(),
+                 dbname   = "greencycles_movies",
+                 host     = "localhost",   # or server IP
+                 port     = 5432,          # default PostgreSQL port
+                 user     = "postgres",
+                 password = "x02ray11")
+
+```
+
+
+## Scenario Flow: Greencycles Movie Rentals
+### 1. Business Challenge
+### Greencycles is a global movie rental company. Management wants to understand customer behaviour, revenue drivers, and operational bottlenecks. They’ve asked the data team (which is me) to analyse their relational database (actor, address, category, city, country, customer, film, film_actor, etc.) and deliver insights.
+
+
+### - The dataset was provided by Greencycles Movie Rentals.  It was imported into PostgreSQL using pgAdmin, where a new database was created and populated with tables such as `actor`, `film`, `category`, `customer`, and `rental`.The relational structure connects films to categories, actors, inventory, and rentals, allowing us to analyse customer behaviour and revenue patterns.  This flow ensures that raw company data is transformed into a structured SQL environment for business intelligence queries and dashboards.
+
+
+### 2. Operational Queries
+### These are the first steps in the analysis where we are answering direct business questions with SQL.
+
+
+#### A. Top rented categories  
+#### Question: Which film categories are most popular?
+
+Approach:  
+We join category, film_category, film, inventory, and rental tables.
+We use COUNT(rental_id) to measure how many rentals each category has.
+Grouping by category name allows us to identify the most popular film categories.
+
+
+```{sql, connection=con, label=my_query1}
+SELECT category.name AS category,
+
+       COUNT(rental.rental_id) AS total_rentals
+       
+      FROM category
+
+      JOIN film_category ON category.category_id = film_category.category_id
+
+      JOIN film ON film_category.film_id = film.film_id
+
+      JOIN inventory ON film.film_id = inventory.film_id
+
+      JOIN rental ON inventory.inventory_id = rental.inventory_id
+
+      GROUP BY category.name
+
+      ORDER BY total_rentals DESC
+
+```
+
+### = The film category with the most popular results is the "Sports" category with "total rentals" of 1179. 
+
+
+
+#### B. Revenue by city  
+#### Question: Which cities generate the most rental revenue?
+
+Approach:  
+We join payment, customer, address, and city tables.
+We use SUM(amount) to calculate total rental revenue per city.
+Grouping by city shows which locations generate the most revenue
+
+```{sql, connection=con, label=my_query2}
+
+SELECT city.city AS city,
+       
+       SUM(payment.amount) AS total_revenue
+
+FROM payment
+
+JOIN customer ON payment.customer_id = customer.customer_id
+
+JOIN address ON customer.address_id = address.address_id
+
+JOIN city ON address.city_id = city.city_id
+
+GROUP BY city.city
+
+ORDER BY total_revenue DESC
+
+LIMIT 10;
+
+```
+
+
+### = The query results show that the City of Cape Coral (221.55), Saint-Denis(216.54) and then Aurora (198.50) are the cities that generate the most rental revenue for the green-cycles movie company. 
+
+
+#### C. Actor productivity  
+#### Question: Which actors appear in the most films?
+
+
+Approach:  
+We join actor with film_actor to link actors to films.
+We use COUNT(film_id) to measure how many films each actor appears in.
+Grouping by actor reveals the most productive actors in the database.
+
+```{sql connection=con, label=my_query3}
+SELECT actor.first_name || '-' || actor.last_name AS actor,
+
+       COUNT(film_actor.film_id) AS film_count
+       
+FROM actor
+
+JOIN film_actor ON actor.actor_id = film_actor.actor_id
+
+GROUP BY actor.actor_id, actor.first_name, actor.last_name
+
+ORDER BY film_count DESC
+
+LIMIT 10;
+```
+
+
+### = According to the query conducted it reveals that actors that are more productive and appear in most movies include "Gina Degeneres" with 42 films, followed by "Walter Torn" with 41 films. 
+
+### 3. Strategic Dashboards
+### Once the operational queries are done, lets move into visualisation where we are turning raw SQL into dashboards that executives can use.
+
+#### A. Customer segmentation dashboard  
+#### Scenario: Show customer distribution by country and average spending per customer.
+
+Approach: 
+We join `customer`, `address`, `city`, `country`, and `payment` tables.  
+We use `COUNT(customer_id)` to measure customer distribution and `AVG(payment.amount)` to calculate average spending.  
+Grouping by country allows us to identify which regions have the largest customer base and how much they spend on.
+
+```{sql connection=con, label=my_query4, output.var="country_stats"}
+SELECT country.country AS country,
+
+       COUNT(customer.customer_id) AS customer_count,
+       
+       AVG(payment.amount) AS avg_spending
+       
+FROM customer
+
+JOIN address ON customer.address_id = address.address_id
+
+JOIN city ON address.city_id = city.city_id
+
+JOIN country ON city.country_id = country.country_id
+
+JOIN payment ON customer.customer_id = payment.customer_id
+
+GROUP BY country.country
+
+ORDER BY customer_count DESC
+LIMIT 30;
+```
+
+```{r q1, warning=FALSE, message=FALSE}
+
+print(country_stats)
+
+
+ggplot(country_stats, aes(x = reorder(country, -customer_count), y = customer_count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_line(aes(y = avg_spending * 10, group = 1), color = "red", size = 1) +
+  scale_y_continuous(
+    name = "Customer Count",
+    sec.axis = sec_axis(~./10, name = "Avg Spending")
+  ) +
+  labs(title = "Customer Count and Avg Spending by Country",
+       x = "Country") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### = From the query and dashboard visualisation the results reveal the region that has the largest customer base which is India (with 1573 customers) and they spend an average of $4.21 on greencycles movie rentals. 
+
+
