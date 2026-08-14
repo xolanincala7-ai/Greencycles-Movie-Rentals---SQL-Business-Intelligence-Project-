@@ -45,7 +45,8 @@ Query joins customer, address, city, country, and payment.
 
 Result: India has the largest customer base (1573 customers) with an average spend of $4.21 per rental.
 
-Analyses Snapshot: 
+Analyses Snapshot: https://github.com/xolanincala7-ai/Greencycles-Movie-Rentals---SQL-Business-Intelligence-Project-/blob/main/Greencycles_visualisations_graphs/The_greencyclescreenshot.png
+
 
 
 # Business Value
